@@ -49,7 +49,6 @@ class Databaser:
         """
         cursor = self.cursor
         new_values = (name, description, timestamp, hidden, photo_href)
-
         cursor.execute("SELECT * FROM photos WHERE photo_id=%s", photo_id)
         result = cursor.fetchall()
         if len(result) == 0:
@@ -61,7 +60,7 @@ class Databaser:
                     values[key] = new_values[key]
             try:
                 cursor.execute("UPDATE photos SET name=%s, description=%s, date_taken=%s, hidden=%s, href=%s"
-                               "WHERE photo_id=%s", values, photo_id)
+                               "WHERE photo_id=%s", values + (photo_id,))
                 self.connection.commit()
             except Exception as e:
                 print(e)
