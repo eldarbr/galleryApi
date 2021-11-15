@@ -1,0 +1,22 @@
+Database tables scheme
+
+
+name			data type		 	not null	primaryKey	foreignKey	    default
+
+->photos
+photo_id		serial								+
+name			text					+
+description		text
+date_taken		timestamp w/o t.z.
+hidden			boolean					+									false
+href			text					+
+
+->categories:
+category_id		serial								+
+name			text					+
+description		text
+hidden			boolean					+									false
+
+->photo_categories:
+photo_id		integer								+			+
+category_id		integer								+			+

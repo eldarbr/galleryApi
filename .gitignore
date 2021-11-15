@@ -1,6 +1,8 @@
 # pycharm auxiliary directory
 .idea
 
+# config with sensitive data
+config.ini
 
 ##############################
 # python .gitignore template #

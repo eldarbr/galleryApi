@@ -1,0 +1,17 @@
+[AUTHORIZATION]
+
+# admin password for managing image database
+# should be passed as a header in administrative request:
+# Authorization: {adminPassword}
+adminPassword =
+
+
+[DATABASE]
+
+# all values must be specified
+# regardless of correspondence with the default values
+hostname=
+port=
+user=
+password=
+dbname=
