@@ -1,6 +1,9 @@
 # pycharm auxiliary directory
 .idea
 
+# class tests
+test.py
+
 # config with sensitive data
 config.ini
 

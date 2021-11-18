@@ -10,8 +10,9 @@ adminPassword =
 
 # all values must be specified
 # regardless of correspondence with the default values
-hostname=
+dbname=
+host=
 port=
 user=
 password=
-dbname=
+
