@@ -23,9 +23,12 @@ class Databaser:
         :param timestamp: when photo was taken
         :param hidden: if the photo is hidden; default-False
         :param photo_categories: list of categories that should be assigned
-        :return: -1 if insertion failed; else photo id, number of errors
+        :return: json with inserted photo id in response tag, errors in errors tag
         """
         responser = Responser()
+        responser.request = {"photo_name": photo_name, "expected": "insertion"}
+        if not self.check_connection():
+            return responser.connection_error()
         if photo_categories is None:
             photo_categories = []
         cursor = self.cursor
@@ -56,11 +59,13 @@ class Databaser:
         :param timestamp: when photo was taken
         :param hidden: if the photo is hidden; default-False
         :param photo_categories: list of categories that should be assigned
-        :return: -1 - no id entry found; -2 - update error; -3 - check error; number of errors
+        :return: json with errors and success status
         """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"photo_id": photo_id, "expected": "modification"}
+        if not self.check_connection():
+            return responser.connection_error()
         new_values = (photo_name, photo_description, timestamp, hidden, photo_href)
         try:
             cursor.execute("SELECT * FROM photos WHERE photo_id=%s", [photo_id])
@@ -94,10 +99,12 @@ class Databaser:
     def assign_photo_to_categories(self, photo_id, category_ids):
         """
         Creates assignment of the photo id with the category ids
-        :return: number of errors
+        :return: json with errors and success status
         """
         responser = Responser()
         responser.request = {"photo_id": photo_id, "expected": "categories assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         if len(category_ids) > 0:
             for category_id in category_ids:
                 responser.errors += self.assign_photo_category(photo_id, category_id)
@@ -107,8 +114,12 @@ class Databaser:
         """
         Re-assigns the photo id with the category ids
         by deleting previous assignation and adding new one
-        :return: -1 - no id to modify entry was found; number of errors
+        :return: json with errors and success status
         """
+        responser = Responser()
+        responser.request = {"photo_id": photo_id, "expected": "categories re-assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         delete = self.delete_photo_photos_categories(photo_id)
         if "success" in json.loads(delete)["response"]:
             return self.assign_photo_to_categories(photo_id, category_ids)
@@ -118,11 +129,13 @@ class Databaser:
     def delete_photo_photos_categories(self, photo_id):
         """
         Deletes assignation with any category
-        :return: 0 - ok; 1 - no id entry was found
+        :return: json with errors and success status
         """
         cursor = self.cursor
         responser = Responser()
-        responser.request = {"photo_id": photo_id, "expected": "categories assignment deletion"}
+        responser.request = {"photo_id": photo_id, "expected": "categories un-assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         try:
             cursor.execute("DELETE FROM photos_categories WHERE photo_id=%s", [photo_id])
             self.connection.commit()
@@ -133,9 +146,19 @@ class Databaser:
         return responser.simple_response()
 
     def insert_category(self, category_name, category_description=None, hidden=False, category_photos=None):
+        """
+        Inserts category to database
+        :param category_name: name of category
+        :param category_description: description of category
+        :param hidden: if the category should be hidden
+        :param category_photos: list of photos to assign with this category
+        :return: json with errors and new category id
+        """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"category_name": category_name, "expected": "insertion"}
+        if not self.check_connection():
+            return responser.connection_error()
         if category_photos is None:
             category_photos = []
         try:
@@ -155,17 +178,19 @@ class Databaser:
     def modify_category(self, category_id, category_name=None, category_description=None,
                         hidden=None, category_photos=None):
         """
-        Modify category info by id. Replace old data with optional new
-        :param category_id:
-        :param category_name:
-        :param category_description:
-        :param hidden:
-        :param category_photos:
-        :return:
+        Modify category info by id. Replace old data with new data.
+        :param category_id: id of category to modify
+        :param category_name: optional - new name
+        :param category_description: optional - new description
+        :param hidden: optional - new hidden status
+        :param category_photos: optional - new list of photos to assign with this category
+        :return: json with errors and success status
         """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"category_id": category_id, "expected": "modification"}
+        if not self.check_connection():
+            return responser.connection_error()
         new_values = (category_name, category_description, hidden)
         try:
             cursor.execute("SELECT * FROM category WHERE photo_id=%s", [category_id])
@@ -197,16 +222,28 @@ class Databaser:
     def assign_category_to_photos(self, category_id, photo_ids):
         """
         Creates assignment of the photo id with the category ids
-        :return: number of errors
+        :return: json with errors and success status
         """
         responser = Responser()
         responser.request = {"category_id": category_id, "expected": "photos assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         if len(photo_ids) > 0:
             for photo_id in photo_ids:
                 responser.errors += self.assign_photo_category(photo_id, category_id)
         return responser.simple_response()
 
     def modify_category_assignment(self, category_id, photo_ids):
+        """
+        Re-assigns photos with specified category
+        :param category_id: target category
+        :param photo_ids: list of photos to assign with this category
+        :return: json with errors and success status
+        """
+        responser = Responser()
+        responser.request = {"category_id": category_id, "expected": "photos re-assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         delete = self.delete_category_photos_categories(category_id)
         if "success" in json.loads(delete)["response"]:
             return self.assign_category_to_photos(category_id, photo_ids)
@@ -214,9 +251,16 @@ class Databaser:
             return delete
 
     def delete_category_photos_categories(self, category_id):
+        """
+        Deletes all assignment of specified category
+        :param category_id: category to unassign
+        :return: json with errors and success status
+        """
         cursor = self.cursor
         responser = Responser()
-        responser.request = {"category_id": category_id, "expected": "photos assignment deletion"}
+        responser.request = {"category_id": category_id, "expected": "photos un-assignment"}
+        if not self.check_connection():
+            return responser.connection_error()
         try:
             cursor.execute("DELETE FROM photos_categories WHERE category_id=%s", [category_id])
             self.connection.commit()
@@ -228,16 +272,15 @@ class Databaser:
 
     def get_photo_by_id(self, photo_id):
         """
-        Returns tuple
-        with data from database - every column - by photo id
-        where on place [0] is given photo id
-        or 0 if the id entry was not found
+        Return photo from database by id
         :param photo_id: input photo id
-        :return: tuple
+        :return: json with data
         """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"photo_id": photo_id, "expected": "photo by id"}
+        if not self.check_connection():
+            return responser.connection_error()
         try:
             cursor.execute("SELECT * FROM photos WHERE photo_id=%s", [photo_id])
             self.connection.commit()
@@ -252,9 +295,17 @@ class Databaser:
         return responser.json_response(columns, result[0])
 
     def get_categories_by_photo(self, photo_id, need_hidden_categories=False):
+        """
+        Returns categories that are assigned with specified photo id
+        :param photo_id:
+        :param need_hidden_categories: True If hidden categories are needed too
+        :return: json with data and errors
+        """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"photo_id": photo_id, "expected": "categories by photo"}
+        if not self.check_connection():
+            return responser.connection_error()
         try:
             cursor.execute("SELECT * FROM photos_categories WHERE photo_id=%s", [photo_id])
             self.connection.commit()
@@ -286,6 +337,8 @@ class Databaser:
         cursor = self.cursor
         responser = Responser()
         responser.request = {"category_id": category_id, "expected": "category by id"}
+        if not self.check_connection():
+            return responser.connection_error()
         try:
             cursor.execute("select * from categories where category_id=%s", [category_id])
             self.connection.commit()
@@ -308,6 +361,8 @@ class Databaser:
         """
         responser = Responser()
         responser.request = {"category_id": category_id, "expected": "photos by category"}
+        if not self.check_connection():
+            return responser.connection_error()
         cursor = self.cursor
         try:
             cursor.execute("SELECT * FROM photos_categories WHERE category_id=%s", [category_id])
@@ -340,6 +395,12 @@ class Databaser:
         return responser.json_response(columns, data)
 
     def assign_photo_category(self, photo_id, category_id):
+        """
+        Creates assignment of specified photo and category
+        :param photo_id: photo id
+        :param category_id: category id
+        :return: json list of errors
+        """
         cursor = self.cursor
         try:
             cursor.execute("INSERT INTO photos_categories VALUES (%s, %s)", (photo_id, category_id))
@@ -351,4 +412,17 @@ class Databaser:
         return []
 
     def current_columns_names(self):
+        """
+        Columns of database request
+        :return: list of columns after a database request
+        """
         return [desc[0] for desc in self.cursor.description]
+
+    def check_connection(self):
+        """
+        Checks connection with database
+        :return: connection status
+        """
+        if self.connection is None or self.connection.closed:
+            return False
+        return True
