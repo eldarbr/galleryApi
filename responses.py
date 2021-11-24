@@ -31,8 +31,9 @@ class Responser:
             pre_json = {}
             for key_i in range(len(keys)):
                 if type(data[key_i]) == datetime.datetime:
-                    data[key_i] = data[key_i].strftime("%d.%m.%y %H:%M")
-                pre_json[keys[key_i]] = data[key_i]
+                    pre_json[keys[key_i]] = data[key_i].strftime("%d.%m.%y %H:%M")
+                else:
+                    pre_json[keys[key_i]] = data[key_i]
         to_dump["response"] = pre_json
         to_dump["errors"] = self.errors
         response = json.dumps(to_dump)
@@ -89,9 +90,25 @@ class Responser:
     def empty_request(self):
         """
         Generates error response with error of empty request
-        :return:
+        :return: json prepared simple response with database empty request error
         """
         self.errors += [{"error_id": -4, "error_description": "empty request"}]
+        return self.json_error()
+
+    def wrong_request(self):
+        """
+        Generates error response with error of wrong request
+        :return: json prepared simple response with database wrong request error
+        """
+        self.errors += [{"error_id": -5, "error_description": "wrong request"}]
+        return self.json_error()
+
+    def unauthorized_request(self):
+        """
+        Generates error response with error of unauthorized request
+        :return: json prepared simple response with database unauthorized request error
+        """
+        self.errors += [{"error_id": -6, "error_description": "unauthorized request"}]
         return self.json_error()
 
     def json_error(self):

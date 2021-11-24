@@ -9,3 +9,7 @@ def database():
     for key in config["DATABASE"]:
         info += key + "=" + config["DATABASE"][key]+" "
     return info.strip()
+
+
+def authorization():
+    return config["AUTHORIZATION"]["adminPassword"]

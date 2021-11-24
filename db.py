@@ -6,12 +6,13 @@ from responses import Responser
 
 
 class Databaser:
-    try:
-        connection = psycopg2.connect(config.database())
-        cursor = connection.cursor()
-    except Exception as e:
-        print(e)
-        connection = None
+    def __init__(self):
+        try:
+            self.connection = psycopg2.connect(config.database())
+            self.cursor = self.connection.cursor()
+        except Exception as e:
+            print(e)
+            self.connection = None
 
     def insert_photo(self, photo_href, photo_name, photo_description=None, timestamp=None, hidden=False,
                      photo_categories=None):
@@ -270,10 +271,11 @@ class Databaser:
             return responser.communication_error(e)
         return responser.simple_response()
 
-    def get_photo_by_id(self, photo_id):
+    def get_photo_by_id(self, photo_id, return_hidden=False):
         """
         Return photo from database by id
         :param photo_id: input photo id
+        :param return_hidden: if the method should return hidden photos
         :return: json with data
         """
         cursor = self.cursor
@@ -281,8 +283,12 @@ class Databaser:
         responser.request = {"photo_id": photo_id, "expected": "photo by id"}
         if not self.check_connection():
             return responser.connection_error()
+        if return_hidden:
+            hidden_mark = (True, False)
+        else:
+            hidden_mark = (False,)
         try:
-            cursor.execute("SELECT * FROM photos WHERE photo_id=%s", [photo_id])
+            cursor.execute("SELECT * FROM photos WHERE photo_id=%s and hidden in %s", (photo_id, hidden_mark))
             self.connection.commit()
         except Exception as e:
             self.connection.commit()
@@ -333,14 +339,25 @@ class Databaser:
         data = cursor.fetchall()
         return responser.json_response(columns, data)
 
-    def get_category_by_id(self, category_id):
+    def get_category_by_id(self, category_id, return_hidden=False):
+        """
+        Return category from database by id
+        :param category_id: input category id
+        :param return_hidden: if the method should return hidden category
+        :return: json with data
+        """
         cursor = self.cursor
         responser = Responser()
         responser.request = {"category_id": category_id, "expected": "category by id"}
         if not self.check_connection():
             return responser.connection_error()
+        if return_hidden:
+            hidden_mark = (True, False)
+        else:
+            hidden_mark = (False,)
         try:
-            cursor.execute("select * from categories where category_id=%s", [category_id])
+            cursor.execute("select * from categories where category_id=%s and hidden in %s",
+                           (category_id, hidden_mark))
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -352,11 +369,11 @@ class Databaser:
         columns = self.current_columns_names()
         return responser.json_response(columns, result[0])
 
-    def get_photos_by_category(self, category_id, need_hidden_photos=False):
+    def get_photos_by_category(self, category_id, return_hidden=False):
         """
         Json-constructed (Responser) array in parent photos
         :param category_id:
-        :param need_hidden_photos:
+        :param return_hidden:
         :return:
         """
         responser = Responser()
@@ -377,7 +394,7 @@ class Databaser:
             return responser.id_not_found_error()
 
         raw_photos = [tup[0] for tup in result]
-        if need_hidden_photos:
+        if return_hidden:
             hidden_mark = (True, False)
         else:
             hidden_mark = (False,)
@@ -394,12 +411,37 @@ class Databaser:
         data = cursor.fetchall()
         return responser.json_response(columns, data)
 
+    def get_gallery_index(self, categories=False):
+        """
+        Returns json with all photos that are not hidden
+        :return: json response
+        """
+        responser = Responser()
+        responser.request = {"expected": "index"}
+        if not self.check_connection():
+            return responser.connection_error()
+        cursor = self.cursor
+        if categories:
+            index_type = "categories"
+        else:
+            index_type = "photos"
+        try:
+            cursor.execute("select * from {} where hidden=false".format(index_type))
+            self.connection.commit()
+        except Exception as e:
+            self.connection.rollback()
+            print(e)
+            return responser.communication_error()
+        columns = self.current_columns_names()
+        index = cursor.fetchall()
+        return responser.json_response(columns, index)
+
     def assign_photo_category(self, photo_id, category_id):
         """
         Creates assignment of specified photo and category
         :param photo_id: photo id
         :param category_id: category id
-        :return: json list of errors
+        :return: json with list of errors
         """
         cursor = self.cursor
         try:
