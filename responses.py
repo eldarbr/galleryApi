@@ -95,12 +95,12 @@ class Responser:
         self.errors += [{"error_id": -4, "error_description": "empty request"}]
         return self.json_error()
 
-    def wrong_request(self):
+    def bad_request(self):
         """
         Generates error response with error of wrong request
-        :return: json prepared simple response with database wrong request error
+        :return: json prepared simple response with database bad request error
         """
-        self.errors += [{"error_id": -5, "error_description": "wrong request"}]
+        self.errors += [{"error_id": -5, "error_description": "bad request"}]
         return self.json_error()
 
     def unauthorized_request(self):

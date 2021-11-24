@@ -93,7 +93,7 @@ class Databaser:
                 print(e)
                 return responser.communication_error(e)
         if photo_categories is not None:
-            return self.modify_photo_assignment(photo_id, photo_categories)
+            return self.modify_photo_to_categories(photo_id, photo_categories)
         else:
             return responser.simple_response()
 
@@ -111,7 +111,7 @@ class Databaser:
                 responser.errors += self.assign_photo_category(photo_id, category_id)
         return responser.simple_response()
 
-    def modify_photo_assignment(self, photo_id, category_ids):
+    def modify_photo_to_categories(self, photo_id, category_ids):
         """
         Re-assigns the photo id with the category ids
         by deleting previous assignation and adding new one
@@ -121,13 +121,13 @@ class Databaser:
         responser.request = {"photo_id": photo_id, "expected": "categories re-assignment"}
         if not self.check_connection():
             return responser.connection_error()
-        delete = self.delete_photo_photos_categories(photo_id)
+        delete = self.delete_photo_to_categories(photo_id)
         if "success" in json.loads(delete)["response"]:
             return self.assign_photo_to_categories(photo_id, category_ids)
         else:
             return delete
 
-    def delete_photo_photos_categories(self, photo_id):
+    def delete_photo_to_categories(self, photo_id):
         """
         Deletes assignation with any category
         :return: json with errors and success status
@@ -217,7 +217,7 @@ class Databaser:
                 print(e)
                 return responser.communication_error(e)
         if category_photos is not None:
-            return self.modify_photo_assignment(category_id, category_photos)
+            return self.modify_photo_to_categories(category_id, category_photos)
         return responser.simple_response()
 
     def assign_category_to_photos(self, category_id, photo_ids):
@@ -234,7 +234,7 @@ class Databaser:
                 responser.errors += self.assign_photo_category(photo_id, category_id)
         return responser.simple_response()
 
-    def modify_category_assignment(self, category_id, photo_ids):
+    def modify_category_to_photos(self, category_id, photo_ids):
         """
         Re-assigns photos with specified category
         :param category_id: target category
@@ -245,13 +245,13 @@ class Databaser:
         responser.request = {"category_id": category_id, "expected": "photos re-assignment"}
         if not self.check_connection():
             return responser.connection_error()
-        delete = self.delete_category_photos_categories(category_id)
+        delete = self.delete_category_to_photos(category_id)
         if "success" in json.loads(delete)["response"]:
             return self.assign_category_to_photos(category_id, photo_ids)
         else:
             return delete
 
-    def delete_category_photos_categories(self, category_id):
+    def delete_category_to_photos(self, category_id):
         """
         Deletes all assignment of specified category
         :param category_id: category to unassign
