@@ -9,7 +9,9 @@ name			text					+
 description		text
 date_taken		timestamp w/o t.z.
 hidden			boolean					+									false
-href			text					+
+href_preview	text                    +
+href_medium 	text                    +
+href_large  	text                    +
 
 ->categories:
 category_id		serial								+
@@ -17,6 +19,6 @@ name			text					+
 description		text
 hidden			boolean					+									false
 
-->photo_categories:
+->photos_categories:
 photo_id		integer								+			+
 category_id		integer								+			+

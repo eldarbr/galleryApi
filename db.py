@@ -14,12 +14,14 @@ class Databaser:
             print(e)
             self.connection = None
 
-    def insert_photo(self, photo_href, photo_name, photo_description=None, timestamp=None, hidden=False,
-                     photo_categories=None):
+    def insert_photo(self, photo_name, href_preview, href_medium, href_large,
+                     photo_description=None, timestamp=None, hidden=False, photo_categories=None):
         """
         Inserts photo to database
-        :param photo_href: href to CDN
         :param photo_name: name of photo
+        :param href_preview: link to CDN
+        :param href_medium: link to CDN
+        :param href_large: link to CDN
         :param photo_description: description of photo
         :param timestamp: when photo was taken
         :param hidden: if the photo is hidden; default-False
@@ -34,28 +36,33 @@ class Databaser:
             photo_categories = []
         cursor = self.cursor
         try:
-            cursor.execute("INSERT INTO photos (name, description, date_taken, hidden, href)"
-                           "VALUES (%s, %s, %s, %s, %s)"
-                           "RETURNING photo_id", (photo_name, photo_description, timestamp, hidden, photo_href))
+            cursor.execute("""INSERT
+                           INTO photos (name, description, date_taken, hidden, href_preview, href_medium, href_large)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s)
+                           RETURNING photo_id""",
+                           (photo_name, photo_description, timestamp, bool(hidden), href_preview, href_medium,
+                            href_large))
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error(e)
+            return responser.communication_error(str(e))
         photo_id = cursor.fetchall()[0][0]
 
         assign_categories = self.assign_photo_to_categories(photo_id, photo_categories)
         responser.errors += json.loads(assign_categories)["errors"]
         return responser.json_response(["photo_id"], (photo_id,))
 
-    def modify_photo(self, photo_id, photo_href=None, photo_name=None, photo_description=None,
-                     timestamp=None, hidden=None, photo_categories=None):
+    def modify_photo(self, photo_id, photo_name=None, href_preview=None, href_medium=None, href_large=None,
+                     photo_description=None, timestamp=None, hidden=None, photo_categories=None):
         """
         Replaces entry at photos table with specified data maintaining photo id
         Re-assigns categories (initiates photos_categories table modify)
         :param photo_id: id of photo to be modified
-        :param photo_href: href to CDN
         :param photo_name: name of photo
+        :param href_preview: link to CDN
+        :param href_medium: link to CDN
+        :param href_large: link to CDN
         :param photo_description: description of photo
         :param timestamp: when photo was taken
         :param hidden: if the photo is hidden; default-False
@@ -67,31 +74,34 @@ class Databaser:
         responser.request = {"photo_id": photo_id, "expected": "modification"}
         if not self.check_connection():
             return responser.connection_error()
-        new_values = (photo_name, photo_description, timestamp, hidden, photo_href)
+        new_values = (photo_name, photo_description, timestamp, hidden, href_preview, href_medium, href_large)
         try:
             cursor.execute("SELECT * FROM photos WHERE photo_id=%s", [photo_id])
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error(e)
-        id_control = cursor.fetchall()
-        if len(id_control) == 0:
+            return responser.communication_error(str(e))
+        if len(cursor.fetchall()) == 0:
             return responser.id_not_found_error()
         else:
-            values = list(id_control[0][1:])
-            for key in range(len(values)):
+            columns = self.current_columns_names()[1:]
+            changed_columns = []
+            for key in range(len(new_values)):
                 if new_values[key] is not None:
-                    values[key] = new_values[key]
-            values = tuple(values)
+                    changed_columns += [columns[key] + "=%s"]
+            if len(changed_columns) == 0:
+                return responser.bad_request("nothing has changed")
+            changed_columns = ", ".join(changed_columns)
+            values = tuple([x for x in new_values if x is not None])
             try:
-                cursor.execute("UPDATE photos SET name=%s, description=%s, date_taken=%s, hidden=%s, href=%s"
-                               "WHERE photo_id=%s", values + (photo_id,))
+                cursor.execute("""UPDATE photos SET {}
+                               WHERE photo_id=%s""".format(changed_columns), values + (photo_id,))
                 self.connection.commit()
             except Exception as e:
                 self.connection.rollback()
                 print(e)
-                return responser.communication_error(e)
+                return responser.communication_error(str(e))
         if photo_categories is not None:
             return self.modify_photo_to_categories(photo_id, photo_categories)
         else:
@@ -102,12 +112,15 @@ class Databaser:
         Creates assignment of the photo id with the category ids
         :return: json with errors and success status
         """
+        print("Create photo to categories relation")
+        print(photo_id, " | ", category_ids)
         responser = Responser()
         responser.request = {"photo_id": photo_id, "expected": "categories assignment"}
         if not self.check_connection():
             return responser.connection_error()
         if len(category_ids) > 0:
             for category_id in category_ids:
+                print("try creating relation", photo_id, category_id)
                 responser.errors += self.assign_photo_category(photo_id, category_id)
         return responser.simple_response()
 
@@ -143,7 +156,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            responser.communication_error(e)
+            responser.communication_error(str(e))
         return responser.simple_response()
 
     def insert_category(self, category_name, category_description=None, hidden=False, category_photos=None):
@@ -163,14 +176,14 @@ class Databaser:
         if category_photos is None:
             category_photos = []
         try:
-            cursor.execute("INSERT INTO categories (name, description, hidden)"
-                           "VALUES (%s, %s, %s)"
-                           "RETURNING category_id", (category_name, category_description, hidden))
+            cursor.execute("""INSERT INTO categories (name, description, hidden)
+                           VALUES (%s, %s, %s)
+                           RETURNING category_id""", (category_name, category_description, hidden))
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error(e)
+            return responser.communication_error(str(e))
         category_id = cursor.fetchall()[0][0]
         assign_photos = self.assign_category_to_photos(category_id, category_photos)
         responser.errors += json.loads(assign_photos)["errors"]
@@ -199,23 +212,27 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
-        id_control = cursor.fetchall()
-        if len(id_control) == 0:
+            return responser.communication_error(str(e))
+        if len(cursor.fetchall()) == 0:
             return responser.id_not_found_error()
         else:
-            values = id_control[0]
-            for key in range(len(values)):
+            columns = self.current_columns_names()[1:]
+            changed_columns = []
+            for key in range(len(new_values)):
                 if new_values[key] is not None:
-                    values[key] = new_values[key]
+                    changed_columns += [columns[key] + "=%s"]
+            if len(changed_columns) == 0:
+                return responser.bad_request("nothing has changed")
+            changed_columns = ", ".join(changed_columns)
+            values = tuple([x for x in new_values if x is not None])
             try:
-                cursor.execute("UPDATE category SET name=%s, description=%s, hidden=%s"
-                               "WHERE category_id=%s", values + (category_id,))
+                cursor.execute("""UPDATE category SET {}
+                               WHERE category_id=%s""".format(changed_columns), values + (category_id,))
                 self.connection.commit()
             except Exception as e:
                 self.connection.rollback()
                 print(e)
-                return responser.communication_error(e)
+                return responser.communication_error(str(e))
         if category_photos is not None:
             return self.modify_photo_to_categories(category_id, category_photos)
         return responser.simple_response()
@@ -268,7 +285,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error(e)
+            return responser.communication_error(str(e))
         return responser.simple_response()
 
     def get_photo_by_id(self, photo_id, return_hidden=False):
@@ -293,7 +310,7 @@ class Databaser:
         except Exception as e:
             self.connection.commit()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
         result = cursor.fetchall()
         if len(result) == 0:
             return responser.id_not_found_error()
@@ -318,7 +335,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
         result = cursor.fetchall()
         if len(result) == 0:
             return responser.id_not_found_error()
@@ -334,7 +351,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
         columns = self.current_columns_names()
         data = cursor.fetchall()
         return responser.json_response(columns, data)
@@ -362,7 +379,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            responser.communication_error()
+            responser.communication_error(str(e))
         result = cursor.fetchall()
         if len(result) == 0:
             return responser.id_not_found_error()
@@ -387,7 +404,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
 
         result = cursor.fetchall()
         if len(result) == 0:
@@ -405,7 +422,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
 
         columns = self.current_columns_names()
         data = cursor.fetchall()
@@ -434,7 +451,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return responser.communication_error()
+            return responser.communication_error(str(e))
         columns = self.current_columns_names()
         index = cursor.fetchall()
         return responser.json_response(columns, index)
@@ -453,7 +470,7 @@ class Databaser:
         except Exception as e:
             self.connection.rollback()
             print(e)
-            return [{"error_id": 0, "raw_error": e}]
+            return [{"error_id": 0, "raw_error": str(e)}]
         return []
 
     def current_columns_names(self):

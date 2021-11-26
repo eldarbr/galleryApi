@@ -87,28 +87,34 @@ class Responser:
             self.errors[-1]["raw_error"] = raw_error
         return self.json_error()
 
-    def empty_request(self):
+    def empty_request(self, raw_error=None):
         """
         Generates error response with error of empty request
         :return: json prepared simple response with database empty request error
         """
         self.errors += [{"error_id": -4, "error_description": "empty request"}]
+        if raw_error is not None:
+            self.errors[-1]["raw_error"] = raw_error
         return self.json_error()
 
-    def bad_request(self):
+    def bad_request(self, raw_error=None):
         """
         Generates error response with error of wrong request
         :return: json prepared simple response with database bad request error
         """
         self.errors += [{"error_id": -5, "error_description": "bad request"}]
+        if raw_error is not None:
+            self.errors[-1]["raw_error"] = raw_error
         return self.json_error()
 
-    def unauthorized_request(self):
+    def unauthorized_request(self, raw_error=None):
         """
         Generates error response with error of unauthorized request
         :return: json prepared simple response with database unauthorized request error
         """
         self.errors += [{"error_id": -6, "error_description": "unauthorized request"}]
+        if raw_error is not None:
+            self.errors[-1]["raw_error"] = raw_error
         return self.json_error()
 
     def json_error(self):
