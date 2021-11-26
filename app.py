@@ -10,8 +10,8 @@ authorizer = Authorizer()
 app = Flask(__name__)
 
 
-@app.route('/master/<task>/<subject>/', methods=['POST'])
-@app.route('/master/<task>/<subject>/<infra_subject>/', methods=['POST'])
+@app.route('/master/<task>/<subject>', methods=['POST'])
+@app.route('/master/<task>/<subject>/<infra_subject>', methods=['POST'])
 def serve_master(task, subject, infra_subject=None):
     headers = request.headers
     if "Authorization" in headers:
@@ -98,7 +98,7 @@ def serve_master(task, subject, infra_subject=None):
     return responser.unauthorized_request()
 
 
-@app.route('/client/<task>/', methods=['GET'])
+@app.route('/client/<task>', methods=['GET'])
 def serve_client(task):
     _id = request.args.get('id', None)
     if task == "photo":
@@ -109,7 +109,7 @@ def serve_client(task):
         if _id is None:
             return responser.empty_request()
         return database.get_category_by_id(_id)
-    elif task == "photos_in_category":
+    elif task == "photos_of_category":
         if _id is None:
             return responser.empty_request()
         return database.get_photos_by_category(_id)
@@ -120,7 +120,7 @@ def serve_client(task):
     elif task == "index":
         return database.get_gallery_index()
     elif task == "categories_index":
-        return database.get_gallery_index(True)
+        return database.get_gallery_index(categories=True)
     else:
         return responser.bad_request()
 

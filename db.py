@@ -417,7 +417,10 @@ class Databaser:
         :return: json response
         """
         responser = Responser()
-        responser.request = {"expected": "index"}
+        if categories:
+            responser.request = {"expected": "categories index"}
+        else:
+            responser.request = {"expected": "photos index"}
         if not self.check_connection():
             return responser.connection_error()
         cursor = self.cursor
