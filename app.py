@@ -24,6 +24,8 @@ def serve_master(task, subject, infra_subject=None):
                     _timestamp = request.form.get("timestamp", default=None)
                     _hidden = request.form.get("hidden", default=None)
                     _categories = request.form.getlist("categories")  # list of categories
+
+                    # create photo
                     if task == "create":
                         try:
                             _name = request.form['name']
@@ -34,6 +36,8 @@ def serve_master(task, subject, infra_subject=None):
                             return responser.bad_request()
                         return database.insert_photo(_name, _href_preview, _href_medium, _href_large, _description,
                                                      _timestamp, _hidden, _categories)
+
+                    # modify photo
                     elif task == "modify":
                         try:
                             _id = request.form['id']
@@ -46,46 +50,66 @@ def serve_master(task, subject, infra_subject=None):
                         return database.modify_photo(_id, _name, _href_preview, _href_medium, _href_large, _description,
                                                      _timestamp, _hidden, _categories)
 
+                # get photo by id
                 elif task == "get":
                     try:
                         _id = request.form['id']
                     except KeyError:
                         return responser.bad_request()
-                    _hidden = request.form.get('include_hidden', default=False)
+                    _hidden = bool(request.form.get('include_hidden', default=False))
                     return database.get_photo_by_id(_id, _hidden)
+
+                # get photos index
+                elif task == "index":
+                    _hidden = bool(request.form.get('include_hidden', default=False))
+                    return database.get_gallery_index(return_hidden=_hidden)
 
             elif subject == "category":
                 if task in ("create", "modify"):
                     _description = request.form.get("description", default=None)
                     _hidden = bool(request.form.get("hidden", default=False))
                     _photos = request.form.getlist("photos")  # list of photos
+
+                    # create category
                     if task == "create":
                         try:
                             _name = request.form["name"]
+                            _alias = request.form["alias"]
                         except KeyError:
                             return responser.bad_request()
-                        return database.insert_category(_name, _description, _hidden, _photos)
+                        return database.insert_category(_name, _alias, _description, _hidden, _photos)
+
+                    # modify category
                     elif task == "modify":
                         try:
                             _id = request.form["id"]
                         except KeyError:
                             return responser.bad_request()
                         _name = request.form.get("name")
-                        return database.modify_category(_id, _name, _description, _hidden, _photos)
+                        _alias = request.form.get("alias")
+                        return database.modify_category(_id, _name, _alias, _description, _hidden, _photos)
 
+                # get category by id
                 elif task == "get":
                     try:
                         _id = request.form['id']
                     except KeyError:
                         return responser.bad_request()
-                    _hidden = request.form.get('include_hidden', default=False)
+                    _hidden = bool(request.form.get('include_hidden', default=False))
                     return database.get_category_by_id(_id, _hidden)
 
+                # get categories index
+                elif task == "index":
+                    _hidden = bool(request.form.get('include_hidden', default=False))
+                    return database.get_gallery_index(categories=True, return_hidden=_hidden)
+
+            # work with relations between categories and photos
             elif subject == "relation":
                 _photo_id = request.form.get("photo_id", default=None)
                 _category_id = request.form.get("category_id", default=None)
                 _photo_ids_list = request.form.getlist("photo_ids_list")
                 _category_ids_list = request.form.getlist("category_ids_list")
+                _hidden = bool(request.form.get('include_hidden', default=False))
 
                 if infra_subject == "photo" and _photo_id is not None:
                     if task == "create":
@@ -94,6 +118,9 @@ def serve_master(task, subject, infra_subject=None):
                         return database.modify_photo_to_categories(_photo_id, _category_ids_list)
                     elif task == "delete":
                         return database.delete_photo_to_categories(_photo_id)
+                    elif task == "get":
+                        return database.get_categories_by_photo(_photo_id, _hidden)
+
                 elif infra_subject == "category" and _category_id is not None:
                     if task == "create":
                         return database.assign_category_to_photos(_category_id, _photo_ids_list)
@@ -101,10 +128,13 @@ def serve_master(task, subject, infra_subject=None):
                         return database.modify_category_to_photos(_category_id, _photo_ids_list)
                     elif task == "delete":
                         return database.delete_category_to_photos(_category_id)
+                    elif task == "get":
+                        return database.get_photos_by_category(_category_id, _hidden)
 
                 return responser.bad_request()
 
             return responser.bad_request()
+
     return responser.unauthorized_request()
 
 

@@ -1,15 +1,16 @@
 from configparser import ConfigParser
 
-config = ConfigParser()
-config.read("config.ini")
 
+class Configurator:
+    def __init__(self):
+        self.config = ConfigParser()
+        self.config.read("config.ini")
 
-def database():
-    info = ""
-    for key in config["DATABASE"]:
-        info += key + "=" + config["DATABASE"][key]+" "
-    return info.strip()
+    def database(self):
+        info = ""
+        for key in self.config["DATABASE"]:
+            info += key + "=" + self.config["DATABASE"][key]+" "
+        return info.strip()
 
-
-def authorization():
-    return config["AUTHORIZATION"]["adminPassword"]
+    def authorization(self):
+        return self.config["AUTHORIZATION"]["adminPassword"]

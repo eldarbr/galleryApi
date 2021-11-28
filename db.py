@@ -1,13 +1,13 @@
 import psycopg2
 import json
-
-import config
+from config import Configurator
 from responses import Responser
 
 
 class Databaser:
     def __init__(self):
         try:
+            config = Configurator()
             self.connection = psycopg2.connect(config.database())
             self.cursor = self.connection.cursor()
         except Exception as e:
@@ -159,10 +159,11 @@ class Databaser:
             responser.communication_error(str(e))
         return responser.simple_response()
 
-    def insert_category(self, category_name, category_description=None, hidden=False, category_photos=None):
+    def insert_category(self, category_name, alias, category_description=None, hidden=False, category_photos=None):
         """
         Inserts category to database
         :param category_name: name of category
+        :param alias: text alias for category
         :param category_description: description of category
         :param hidden: if the category should be hidden
         :param category_photos: list of photos to assign with this category
@@ -176,9 +177,9 @@ class Databaser:
         if category_photos is None:
             category_photos = []
         try:
-            cursor.execute("""INSERT INTO categories (name, description, hidden)
-                           VALUES (%s, %s, %s)
-                           RETURNING category_id""", (category_name, category_description, hidden))
+            cursor.execute("""INSERT INTO categories (name, description, hidden, alias)
+                           VALUES (%s, %s, %s, %s)
+                           RETURNING category_id""", (category_name, category_description, hidden, alias))
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -189,12 +190,13 @@ class Databaser:
         responser.errors += json.loads(assign_photos)["errors"]
         return responser.json_response(["category_id"], (category_id,))
 
-    def modify_category(self, category_id, category_name=None, category_description=None,
+    def modify_category(self, category_id, category_name=None, alias=None, category_description=None,
                         hidden=None, category_photos=None):
         """
         Modify category info by id. Replace old data with new data.
         :param category_id: id of category to modify
         :param category_name: optional - new name
+        :param alias: new text alias for the category
         :param category_description: optional - new description
         :param hidden: optional - new hidden status
         :param category_photos: optional - new list of photos to assign with this category
@@ -205,7 +207,7 @@ class Databaser:
         responser.request = {"category_id": category_id, "expected": "modification"}
         if not self.check_connection():
             return responser.connection_error()
-        new_values = (category_name, category_description, hidden)
+        new_values = (category_name, category_description, hidden, alias)
         try:
             cursor.execute("SELECT * FROM category WHERE photo_id=%s", [category_id])
             self.connection.commit()
@@ -317,11 +319,11 @@ class Databaser:
         columns = self.current_columns_names()
         return responser.json_response(columns, result[0])
 
-    def get_categories_by_photo(self, photo_id, need_hidden_categories=False):
+    def get_categories_by_photo(self, photo_id, return_hidden=False):
         """
         Returns categories that are assigned with specified photo id
         :param photo_id:
-        :param need_hidden_categories: True If hidden categories are needed too
+        :param return_hidden: True If hidden categories are needed too
         :return: json with data and errors
         """
         cursor = self.cursor
@@ -340,7 +342,7 @@ class Databaser:
         if len(result) == 0:
             return responser.id_not_found_error()
         raw_categories = [tup[1] for tup in result]
-        if need_hidden_categories:
+        if return_hidden:
             hidden_mark = (True, False)
         else:
             hidden_mark = (False,)
@@ -428,7 +430,7 @@ class Databaser:
         data = cursor.fetchall()
         return responser.json_response(columns, data)
 
-    def get_gallery_index(self, categories=False):
+    def get_gallery_index(self, categories=False, return_hidden=False):
         """
         Returns json with all photos that are not hidden
         :return: json response
@@ -445,8 +447,12 @@ class Databaser:
             index_type = "categories"
         else:
             index_type = "photos"
+        if return_hidden:
+            hidden_mark = (True, False)
+        else:
+            hidden_mark = (False,)
         try:
-            cursor.execute("select * from {} where hidden=false".format(index_type))
+            cursor.execute("select * from {} where hidden in %s".format(index_type), hidden_mark)
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
