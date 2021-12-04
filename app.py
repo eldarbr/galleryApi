@@ -19,23 +19,18 @@ def serve_master(task, subject, infra_subject=None):
         if authorizer.authorize(headers["Authorization"]):
 
             if subject == "photo":
-                if task in ("create", "modify"):
+                if task in ("insert", "modify"):
                     _description = request.form.get("description", default=None)
                     _timestamp = request.form.get("timestamp", default=None)
                     _hidden = request.form.get("hidden", default=None)
-                    _categories = request.form.getlist("categories")  # list of categories
 
-                    # create photo
-                    if task == "create":
+                    # insert photo
+                    if task == "insert":
                         try:
                             _name = request.form['name']
-                            _href_preview = request.form['href_preview']
-                            _href_medium = request.form['href_medium']
-                            _href_large = request.form['href_large']
                         except KeyError:
                             return responser.bad_request()
-                        return database.insert_photo(_name, _href_preview, _href_medium, _href_large, _description,
-                                                     _timestamp, _hidden, _categories)
+                        return database.insert_photo(_name, _description, _timestamp, _hidden)
 
                     # modify photo
                     elif task == "modify":
@@ -44,11 +39,7 @@ def serve_master(task, subject, infra_subject=None):
                         except KeyError:
                             return responser.bad_request()
                         _name = request.form.get('name', default=None)
-                        _href_preview = request.form.get('href_preview', default=None)
-                        _href_medium = request.form.get('href_medium', default=None)
-                        _href_large = request.form.get('href_large', default=None)
-                        return database.modify_photo(_id, _name, _href_preview, _href_medium, _href_large, _description,
-                                                     _timestamp, _hidden, _categories)
+                        return database.modify_photo(_id, _name, _description, _timestamp, _hidden)
 
                 # get photo by id
                 elif task == "get":
@@ -57,27 +48,28 @@ def serve_master(task, subject, infra_subject=None):
                     except KeyError:
                         return responser.bad_request()
                     _hidden = bool(request.form.get('include_hidden', default=False))
-                    return database.get_photo_by_id(_id, _hidden)
+                    _incomplete = bool(request.form.get('include_incomplete', default=False))
+                    return database.get_photo_by_id(_id, _hidden, _incomplete)
 
                 # get photos index
                 elif task == "index":
                     _hidden = bool(request.form.get('include_hidden', default=False))
-                    return database.get_gallery_index(return_hidden=_hidden)
+                    _incomplete = bool(request.form.get('include_incomplete', default=False))
+                    return database.get_gallery_index(return_hidden=_hidden, return_incomplete=_incomplete)
 
             elif subject == "category":
-                if task in ("create", "modify"):
+                if task in ("insert", "modify"):
                     _description = request.form.get("description", default=None)
                     _hidden = bool(request.form.get("hidden", default=False))
-                    _photos = request.form.getlist("photos")  # list of photos
 
-                    # create category
-                    if task == "create":
+                    # insert category
+                    if task == "insert":
                         try:
                             _name = request.form["name"]
                             _alias = request.form["alias"]
                         except KeyError:
                             return responser.bad_request()
-                        return database.insert_category(_name, _alias, _description, _hidden, _photos)
+                        return database.insert_category(_name, _alias, _description, _hidden)
 
                     # modify category
                     elif task == "modify":
@@ -87,16 +79,16 @@ def serve_master(task, subject, infra_subject=None):
                             return responser.bad_request()
                         _name = request.form.get("name")
                         _alias = request.form.get("alias")
-                        return database.modify_category(_id, _name, _alias, _description, _hidden, _photos)
+                        return database.modify_category(_id, _name, _alias, _description, _hidden)
 
-                # get category by id
+                # get category by label
                 elif task == "get":
                     try:
-                        _id = request.form['id']
+                        _id = request.form['label']
                     except KeyError:
                         return responser.bad_request()
                     _hidden = bool(request.form.get('include_hidden', default=False))
-                    return database.get_category_by_id(_id, _hidden)
+                    return database.get_category_by_label(_id, _hidden)
 
                 # get categories index
                 elif task == "index":
@@ -112,9 +104,9 @@ def serve_master(task, subject, infra_subject=None):
                 _hidden = bool(request.form.get('include_hidden', default=False))
 
                 if infra_subject == "photo" and _photo_id is not None:
-                    if task == "create":
+                    if task == "add":
                         return database.assign_photo_to_categories(_photo_id, _category_ids_list)
-                    elif task == "modify":
+                    elif task == "replace":
                         return database.modify_photo_to_categories(_photo_id, _category_ids_list)
                     elif task == "delete":
                         return database.delete_photo_to_categories(_photo_id)
@@ -122,9 +114,9 @@ def serve_master(task, subject, infra_subject=None):
                         return database.get_categories_by_photo(_photo_id, _hidden)
 
                 elif infra_subject == "category" and _category_id is not None:
-                    if task == "create":
+                    if task == "add":
                         return database.assign_category_to_photos(_category_id, _photo_ids_list)
-                    elif task == "modify":
+                    elif task == "replace":
                         return database.modify_category_to_photos(_category_id, _photo_ids_list)
                     elif task == "delete":
                         return database.delete_category_to_photos(_category_id)
@@ -141,14 +133,15 @@ def serve_master(task, subject, infra_subject=None):
 @app.route('/client/<task>', methods=['GET'])
 def serve_client(task):
     _id = request.args.get('id', None)
+    _label = request.args.get('label', None)
     if task == "photo":
         if _id is None:
             return responser.empty_request()
         return database.get_photo_by_id(_id)
     elif task == "category":
-        if _id is None:
+        if _label is None:
             return responser.empty_request()
-        return database.get_category_by_id(_id)
+        return database.get_category_by_label(_label)
     elif task == "photos_of_category":
         if _id is None:
             return responser.empty_request()

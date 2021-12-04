@@ -1,7 +1,7 @@
 Database tables scheme
 
 
-name			data type		 	not null	primaryKey	foreignKey	    default
+name			data type		 	not null	primaryKey	foreignKey	    default     unique
 
 ->photos
 photo_id		serial								+
@@ -9,17 +9,21 @@ name			text					+
 description		text
 date_taken		timestamp w/o t.z.
 hidden			boolean					+									false
-href_preview	text                    +
-href_medium 	text                    +
-href_large  	text                    +
+incomplete      boolean                 +                                   true
 
 ->categories:
 category_id		serial								+
 name			text					+
 description		text
 hidden			boolean					+									false
-alias (unique)  text                    +
+alias           text                    +                                                   +
 
 ->photos_categories:
 photo_id		integer								+			+
 category_id		integer								+			+
+
+->hrefs
+photo_id        integer                             +           +
+href_preview    text                    +
+href_medium     text                    +
+href_large      text                    +
