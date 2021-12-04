@@ -399,7 +399,7 @@ class Databaser:
         cursor = self.cursor
         try:
             cursor.execute("select category_id from categories where alias=%s",
-                           (category_alias,))
+                           [category_alias])
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -445,7 +445,7 @@ class Databaser:
             incomplete_mark = (False,)
         try:
             cursor.execute("select * from photos where photo_id in %s and hidden in %s and incomplete in %s",
-                           (tuple(raw_photos), hidden_mark), incomplete_mark)
+                           (tuple(raw_photos), hidden_mark, incomplete_mark))
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -482,7 +482,7 @@ class Databaser:
         else:
             incomplete_mark = ""
         try:
-            cursor.execute("select * from {} where hidden in %s{}".format(index_type, incomplete_mark), hidden_mark)
+            cursor.execute("select * from {} where hidden in %s{}".format(index_type, incomplete_mark), [hidden_mark])
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
