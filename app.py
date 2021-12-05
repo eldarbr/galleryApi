@@ -143,8 +143,9 @@ def serve_client(task):
             return responser.empty_request()
         return database.get_category_by_label(_label)
     elif task == "photos_of_category":
-        if _id is None:
+        if _label is None:
             return responser.empty_request()
+        _id = database.get_category_id_by_label(_label)
         return database.get_photos_by_category(_id)
     elif task == "categories_of_photo":
         if _id is None:

@@ -8,7 +8,7 @@ Part of backend code for gallery project
 All client requests must be GET method and should be sent to **host/client/<task\>**, where task is in list:
 - *photo* - photo by id, requested photo *id* is an argument
 - *category* - category by label (id or alias), requested category *label* is an argument
-- *photos_of_category* - photos that correspond to the category, category *id* is an argument
+- *photos_of_category* - photos that correspond to the category, category *label* is an argument
 - *categories_of_photo* - categories that correspond to the photo, photo *id* is an argument
 - *index* - photos index
 - *categories_index* - categories index
