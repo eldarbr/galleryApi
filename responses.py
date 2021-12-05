@@ -117,6 +117,18 @@ class Responser:
             self.errors[-1]["raw_error"] = raw_error
         return self.json_error()
 
+    def not_found(self, raw_error=None):
+        self.errors += [{"error_id": -7, "error_description": "not found"}]
+        if raw_error is not None:
+            self.errors[-1]["raw_error"] = raw_error
+        return self.json_error()
+
+    def unallowed_method(self, raw_error=None):
+        self.errors += [{"error_id": -8, "error_description": "method not allowed"}]
+        if raw_error is not None:
+            self.errors[-1]["raw_error"] = raw_error
+        return self.json_error()
+
     def json_error(self):
         """
         Generates error response with request and response and errors info from the class

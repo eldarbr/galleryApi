@@ -15,3 +15,12 @@ host=
 port=
 user=
 password=
+
+
+[YADISK.API]
+
+# yandex disk api token
+api_token=
+
+# main folder at yandex disk
+remote_folder=

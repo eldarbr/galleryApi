@@ -2,6 +2,7 @@ import psycopg2
 import json
 from config import Configurator
 from responses import Responser
+from yadisk import API
 
 
 class Databaser:
@@ -550,6 +551,72 @@ class Databaser:
             print(e)
             return [{"error_id": 0, "raw_error": str(e)}]
         return []
+
+    def sync_hrefs_elements(self):
+        """
+        Synchronizes elements in hrefs table with photos table
+        :return: json report
+        """
+        cursor = self.cursor
+        responser = Responser()
+        responser.request = {"expected": "hrefs synchronization"}
+        api = API()
+
+        # get list of incomplete photo ids
+        try:
+            cursor.execute("select photo_id from photos where incomplete=true")
+            self.connection.commit()
+            ids_list = cursor.fetchall()
+        except Exception as e:
+            self.connection.rollback()
+            print(e)
+            return responser.communication_error(str(e))
+
+        # fetch and save hrefs
+        for photo_id in ids_list:
+            hrefs = api.get_hrefs_by_id(photo_id)
+            try:
+                cursor.execute("""insert into hrefs (photo_id, href_preview, href_medium, href_large)
+                               values (%s, %s, %s, %s)""",
+                               (photo_id, hrefs["preview"], hrefs["medium"], hrefs["large"]))
+                # update incomplete flag for changed photo
+                cursor.execute("UPDATE photos SET incomplete=false where photo_id=%s", [photo_id])
+                self.connection.commit()
+            except Exception as e:
+                self.connection.rollback()
+                print(e)
+                responser.errors += [{"error_id": 0,
+                                      "error_description": f"error while inserting {photo_id} into hrefs",
+                                      "raw_error": str(e)}]
+        return responser.simple_response()
+
+    def update_hrefs(self):
+        """
+        Updates hrefs of every element of hrefs table
+        :return: json report
+        """
+        cursor = self.cursor
+        responser = Responser()
+        api = API()
+        try:
+            cursor.execute("select photo_id from hrefs")
+            self.connection.commit()
+            ids = cursor.fetchall()
+        except Exception as e:
+            self.connection.rollback()
+            print(e)
+            return responser.communication_error(str(e))
+        for photo_id in ids:
+            hrefs = api.get_hrefs_by_id(photo_id)
+            try:
+                cursor.execute("""update hrefs set href_preview=%s, href_medium=%s, href_large=%s where photo_id=%s""",
+                               hrefs["preview"], hrefs["medium"], hrefs["large"])
+                self.connection.commit()
+            except Exception as e:
+                responser.errors += [{"error_id": 0,
+                                      "error_description": f"error while updating {photo_id} in hrefs",
+                                      "raw_error": str(e)}]
+        return responser.simple_response()
 
     def current_columns_names(self):
         """

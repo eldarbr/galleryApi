@@ -105,3 +105,8 @@ Supported requests:
 - **host/master/get/relation/category** - get list of photos by category. Input data:
     - *category_id* - id of category
     - *include_hidden* - if hidden photos are expected to be returned (optional, default - false)
+
+
+- **host/master/modify/config** - rewrite yandex api configuration. Input data:
+    - *yadisk_token* - yandex disk api token (optional, default - current config)
+    - *yadisk_folder* - main folder at yandex disk (optional, default - current config)

@@ -4,6 +4,7 @@ from flask import request
 from db import Databaser
 from responses import Responser
 from auth import Authorizer
+from config import Configurator
 
 responser = Responser()
 database = Databaser()
@@ -11,6 +12,7 @@ authorizer = Authorizer()
 app = Flask(__name__)
 
 
+# Master requests
 @app.route('/master/<task>/<subject>', methods=['POST'])
 @app.route('/master/<task>/<subject>/<infra_subject>', methods=['POST'])
 def serve_master(task, subject, infra_subject=None):
@@ -29,7 +31,7 @@ def serve_master(task, subject, infra_subject=None):
                         try:
                             _name = request.form['name']
                         except KeyError:
-                            return responser.bad_request()
+                            return bad_request("")
                         return database.insert_photo(_name, _description, _timestamp, _hidden)
 
                     # modify photo
@@ -37,7 +39,7 @@ def serve_master(task, subject, infra_subject=None):
                         try:
                             _id = request.form['id']
                         except KeyError:
-                            return responser.bad_request()
+                            return bad_request("")
                         _name = request.form.get('name', default=None)
                         return database.modify_photo(_id, _name, _description, _timestamp, _hidden)
 
@@ -46,7 +48,7 @@ def serve_master(task, subject, infra_subject=None):
                     try:
                         _id = request.form['id']
                     except KeyError:
-                        return responser.bad_request()
+                        return bad_request("")
                     _hidden = bool(request.form.get('include_hidden', default=False))
                     _incomplete = bool(request.form.get('include_incomplete', default=False))
                     return database.get_photo_by_id(_id, _hidden, _incomplete)
@@ -68,7 +70,7 @@ def serve_master(task, subject, infra_subject=None):
                             _name = request.form["name"]
                             _alias = request.form["alias"]
                         except KeyError:
-                            return responser.bad_request()
+                            return bad_request("")
                         return database.insert_category(_name, _alias, _description, _hidden)
 
                     # modify category
@@ -76,7 +78,7 @@ def serve_master(task, subject, infra_subject=None):
                         try:
                             _id = request.form["id"]
                         except KeyError:
-                            return responser.bad_request()
+                            return bad_request("")
                         _name = request.form.get("name")
                         _alias = request.form.get("alias")
                         return database.modify_category(_id, _name, _alias, _description, _hidden)
@@ -86,7 +88,7 @@ def serve_master(task, subject, infra_subject=None):
                     try:
                         _id = request.form['label']
                     except KeyError:
-                        return responser.bad_request()
+                        return bad_request("")
                     _hidden = bool(request.form.get('include_hidden', default=False))
                     return database.get_category_by_label(_id, _hidden)
 
@@ -123,40 +125,68 @@ def serve_master(task, subject, infra_subject=None):
                     elif task == "get":
                         return database.get_photos_by_category(_category_id, _hidden)
 
-                return responser.bad_request()
+            # modify yandex api configuration
+            elif subject == "config":
+                if task == "modify":
+                    config = Configurator()
+                    _token = request.form.get("yadisk_token", default=None)
+                    _folder = request.form.get("yadisk_folder", default=None)
+                    config.yadisk_api_rewrite(_token, _folder)
+                    return responser.simple_response()
 
-            return responser.bad_request()
+            return not_found("")
 
-    return responser.unauthorized_request()
+    return unauthorized("")
 
 
+# Client requests
 @app.route('/client/<task>', methods=['GET'])
 def serve_client(task):
     _id = request.args.get('id', None)
     _label = request.args.get('label', None)
     if task == "photo":
         if _id is None:
-            return responser.empty_request()
+            return bad_request("")
         return database.get_photo_by_id(_id)
     elif task == "category":
         if _label is None:
-            return responser.empty_request()
+            return bad_request("")
         return database.get_category_by_label(_label)
     elif task == "photos_of_category":
         if _label is None:
-            return responser.empty_request()
+            return bad_request("")
         _id = database.get_category_id_by_label(_label)
         return database.get_photos_by_category(_id)
     elif task == "categories_of_photo":
         if _id is None:
-            return responser.empty_request()
+            return bad_request("")
         return database.get_categories_by_photo(_id)
     elif task == "index":
         return database.get_gallery_index()
     elif task == "categories_index":
         return database.get_gallery_index(categories=True)
     else:
-        return responser.bad_request()
+        return not_found("")
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    return responser.bad_request(), 400
+
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return responser.unauthorized_request(), 401
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return responser.not_found(), 404
+
+
+@app.errorhandler(405)
+def not_found(e):
+    return responser.unallowed_method(), 405
 
 
 if __name__ == '__main__':
